@@ -1,0 +1,8 @@
+.env
+.venv/
+node_modules/
+vendor/
+notifications.log
+logs/
+__pycache__/dump.rdb
+*.rdb

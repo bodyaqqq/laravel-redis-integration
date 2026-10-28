@@ -1,0 +1,47 @@
+services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  laravel:
+    image: php:8.4-cli
+    working_dir: /var/www/html
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    volumes:
+      - ./laravel-blog:/var/www/html
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_CLIENT: predis
+      REDIS_PREFIX: ""
+      QUEUE_CONNECTION: redis
+    command: sh -c "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000 --no-reload"
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./python-worker
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    volumes:
+      - ./python-worker:/app
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: on-failure
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    ports:
+      - "5500:80"
